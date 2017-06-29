@@ -7,7 +7,7 @@
 #import <UIKit/UIKit.h>
 #import "TTRangeSliderDelegate.h"
 
-IB_DESIGNABLE
+
 @interface TTRangeSlider : UIControl <UIGestureRecognizerDelegate>
 
 /**
@@ -18,24 +18,31 @@ IB_DESIGNABLE
 /**
  * The minimum possible value to select in the range
  */
-@property (nonatomic, assign) IBInspectable float minValue;
+@property (nonatomic, assign) float minimumValue;
 
 /**
  * The maximum possible value to select in the range
  */
-@property (nonatomic, assign) IBInspectable float maxValue;
+@property (nonatomic, assign) float maximumValue;
 
 /**
- * The preselected minumum value
+ * The selected minumum value
  * (note: This should be less than the selectedMaximum)
  */
-@property (nonatomic, assign) IBInspectable float selectedMinimum;
+@property (nonatomic, assign) float selectedMinimum;
 
 /**
- * The preselected maximum value
+ * The selected maximum value
  * (note: This should be greater than the selectedMinimum)
  */
-@property (nonatomic, assign) IBInspectable float selectedMaximum;
+@property (nonatomic, assign) float selectedMaximum;
+
+/**
+ * The selected value when range is disabled.
+ * This is just a bridge to selectedMaximum so that TTRangeSlider is API-compatible with UISlider.
+ * Raises an exception if called when range is enabled.
+ */
+@property (nonatomic, assign) float value;
 
 /**
  * Each handle in the slider has a label above it showing the current selected value. By default, this is displayed as a decimal format.
@@ -46,74 +53,74 @@ IB_DESIGNABLE
 /**
  * Hides the labels above the slider controls. YES = labels will be hidden. NO = labels will be shown. Default is NO.
  */
-@property (nonatomic, assign) IBInspectable BOOL hideLabels;
+@property (nonatomic, assign) BOOL hideLabels;
 
 /**
  * The color of the minimum value text label. If not set, the default is the tintColor.
  */
-@property (nonatomic, strong) IBInspectable UIColor *minLabelColour;
+@property (nonatomic, strong) UIColor *minLabelColour;
 
 /**
  * The color of the maximum value text label. If not set, the default is the tintColor.
  */
-@property (nonatomic, strong) IBInspectable UIColor *maxLabelColour;
+@property (nonatomic, strong) UIColor *maxLabelColour;
 
 
 /**
  * The font of the minimum value text label. If not set, the default is system font size 12.
  */
-@property (nonatomic, strong) IBInspectable UIFont *minLabelFont;
+@property (nonatomic, strong) UIFont *minLabelFont;
 
 /**
  * The font of the maximum value text label. If not set, the default is system font size 12.
  */
-@property (nonatomic, strong) IBInspectable UIFont *maxLabelFont;
+@property (nonatomic, strong) UIFont *maxLabelFont;
 
 /**
  * The label displayed in accessibility mode for minimum value handler
  */
-@property (nonatomic, strong) IBInspectable NSString *minLabelAccessibilityLabel;
+@property (nonatomic, strong) NSString *minLabelAccessibilityLabel;
 
 /**
  * The label displayed in accessibility mode for maximum value handler
  */
-@property (nonatomic, strong) IBInspectable NSString *maxLabelAccessibilityLabel;
+@property (nonatomic, strong) NSString *maxLabelAccessibilityLabel;
 
 /**
  * The brief description displayed in accessibility mode for minimum value handler
  */
-@property (nonatomic, strong) IBInspectable NSString *minLabelAccessibilityHint;
+@property (nonatomic, strong) NSString *minLabelAccessibilityHint;
 
 /**
  * The brief description displayed in accessibility mode for maximum value handler
  */
-@property (nonatomic, strong) IBInspectable NSString *maxLabelAccessibilityHint;
+@property (nonatomic, strong) NSString *maxLabelAccessibilityHint;
 
 /**
- * If true, the control will mimic a normal slider and have only one handle rather than a range.
+ * If false, the control will mimic a normal slider and have only one handle rather than a range.
  * In this case, the selectedMinValue will be not functional anymore. Use selectedMaxValue instead to determine the value the user has selected.
  */
-@property (nonatomic, assign) IBInspectable BOOL disableRange;
+@property (nonatomic, assign) BOOL enableRange;
 
-@property (nonatomic, assign) IBInspectable float minDistance;
+@property (nonatomic, assign) float minDistance;
 
-@property (nonatomic, assign) IBInspectable float maxDistance;
+@property (nonatomic, assign) float maxDistance;
 
 /**
  * If true the control will snap to point at each step between minValue and maxValue
  */
-@property (nonatomic, assign) IBInspectable BOOL enableStep;
+@property (nonatomic, assign) BOOL enableStep;
 
 /**
  * The step value, this control the value of each step. If not set the default is 0.1.
  * (note: this is ignored if <= 0.0)
  */
-@property (nonatomic, assign) IBInspectable float step;
+@property (nonatomic, assign) float step;
 
 /**
  *Set padding between label and handle (default 8.0)
  */
-@property (nonatomic, assign) IBInspectable CGFloat labelPadding;
+@property (nonatomic, assign) CGFloat labelPadding;
 
 /**
  *Handle slider with custom image, you can set custom image for your handle

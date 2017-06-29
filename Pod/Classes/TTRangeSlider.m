@@ -13,9 +13,9 @@ const float TEXT_HEIGHT = 14;
 @property (nonatomic, strong) CALayer *sliderLine;
 @property (nonatomic, strong) CALayer *sliderLineBetweenHandles;
 
-@property (nonatomic, strong) CALayer *leftHandle;
+@property (nonatomic, strong) CAShapeLayer *leftHandle;
 @property (nonatomic, assign) BOOL leftHandleSelected;
-@property (nonatomic, strong) CALayer *rightHandle;
+@property (nonatomic, strong) CAShapeLayer *rightHandle;
 @property (nonatomic, assign) BOOL rightHandleSelected;
 
 @property (nonatomic, strong) CATextLayer *minLabel;
@@ -50,13 +50,15 @@ static const CGFloat kLabelsFontSize = 12.0f;
 //do all the setup in a common place, as there can be two initialisers called depending on if storyboards or code are used. The designated initialiser isn't always called :|
 - (void)initialiseControl {
     //defaults:
-    _minValue = 0;
+    _minimumValue = 0;
     _selectedMinimum = 10;
-    _maxValue = 100;
+    _maximumValue = 100;
     _selectedMaximum  = 90;
 
     _minDistance = -1;
     _maxDistance = -1;
+
+    _enableRange = YES;
 
     _enableStep = NO;
     _step = 0.1f;
@@ -83,24 +85,7 @@ static const CGFloat kLabelsFontSize = 12.0f;
     self.sliderLineBetweenHandles.backgroundColor = self.tintColor.CGColor;
     [self.layer addSublayer:self.sliderLineBetweenHandles];
 
-    //draw the minimum slider handle
-    self.leftHandle = [CALayer layer];
-    self.leftHandle.cornerRadius = self.handleDiameter / 2;
-    self.leftHandle.backgroundColor = self.tintColor.CGColor;
-    self.leftHandle.borderWidth = self.handleBorderWidth;
-    self.leftHandle.borderColor = self.handleBorderColor.CGColor;
-    [self.layer addSublayer:self.leftHandle];
-
-    //draw the maximum slider handle
-    self.rightHandle = [CALayer layer];
-    self.rightHandle.cornerRadius = self.handleDiameter / 2;
-    self.rightHandle.backgroundColor = self.tintColor.CGColor;
-    self.rightHandle.borderWidth = self.handleBorderWidth;
-    self.rightHandle.borderColor = self.handleBorderColor.CGColor;
-    [self.layer addSublayer:self.rightHandle];
-
-    self.leftHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
-    self.rightHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
+    [self drawHandles];
 
     //draw the text labels
     self.minLabel = [[CATextLayer alloc] init];
@@ -154,7 +139,7 @@ static const CGFloat kLabelsFontSize = 12.0f;
     [super layoutSubviews];
 
     //positioning for the slider line
-    float barSidePadding = 16.0f;
+    float barSidePadding = 0.0f;
     CGRect currentFrame = self.frame;
     float yMiddle = currentFrame.size.height/2.0;
     CGPoint lineLeftSide = CGPointMake(barSidePadding, yMiddle);
@@ -195,6 +180,47 @@ static const CGFloat kLabelsFontSize = 12.0f;
     return CGSizeMake(UIViewNoIntrinsicMetric, 65);
 }
 
+- (void)drawHandles {
+    //draw the minimum slider handle
+    if (self.leftHandle == nil) {
+        self.leftHandle = [CAShapeLayer layer];
+        self.leftHandle.fillColor = self.tintColor.CGColor;
+        self.leftHandle.strokeColor = self.handleBorderColor.CGColor;
+        self.leftHandle.lineWidth = self.handleBorderWidth;
+        [self.layer addSublayer:self.leftHandle];
+    }
+    UIBezierPath *leftSemicircle = [UIBezierPath bezierPathWithArcCenter:CGPointMake(self.handleDiameter / 2, self.handleDiameter / 2) radius:(self.handleDiameter / 2) startAngle:M_PI_2  endAngle:-M_PI_2 clockwise:YES];
+    [leftSemicircle closePath];
+    self.leftHandle.path = leftSemicircle.CGPath;
+
+    //draw the maximum slider handle
+    if (self.rightHandle == nil) {
+        self.rightHandle = [CAShapeLayer layer];
+        self.rightHandle.fillColor = self.tintColor.CGColor;
+        self.rightHandle.strokeColor = self.handleBorderColor.CGColor;
+        self.rightHandle.lineWidth = self.handleBorderWidth;
+        [self.layer addSublayer:self.rightHandle];
+
+    }
+    if (self.enableRange) {
+        self.rightHandle.backgroundColor = [UIColor clearColor].CGColor;
+        self.rightHandle.borderWidth = 0;
+        self.rightHandle.cornerRadius = 0;
+        UIBezierPath *rightSemicircle = [UIBezierPath bezierPathWithArcCenter:CGPointMake(self.handleDiameter / 2, self.handleDiameter / 2) radius:(self.handleDiameter / 2) startAngle:M_PI_2  endAngle:-M_PI_2 clockwise:NO];
+        [rightSemicircle closePath];
+        self.rightHandle.path = rightSemicircle.CGPath;
+    } else {
+        self.rightHandle.backgroundColor = self.handleColor.CGColor;
+        self.rightHandle.borderColor = self.handleBorderColor.CGColor;
+        self.rightHandle.borderWidth = self.handleBorderWidth;
+        self.rightHandle.cornerRadius = self.handleDiameter / 2;
+        self.rightHandle.path = NULL;
+    }
+
+
+    self.leftHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
+    self.rightHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
+}
 
 - (void)tintColorDidChange {
     CGColorRef color = self.tintColor.CGColor;
@@ -204,8 +230,8 @@ static const CGFloat kLabelsFontSize = 12.0f;
     [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut] ];
     self.sliderLine.backgroundColor = color;
     if (self.handleColor == nil) {
-        self.leftHandle.backgroundColor = color;
-        self.rightHandle.backgroundColor = color;
+        self.leftHandle.fillColor = color;
+        self.rightHandle.fillColor = color;
     }
 
     if (self.minLabelColour == nil){
@@ -218,15 +244,15 @@ static const CGFloat kLabelsFontSize = 12.0f;
 }
 
 - (float)getPercentageAlongLineForValue:(float) value {
-    if (self.minValue == self.maxValue){
+    if (self.minimumValue == self.maximumValue){
         return 0; //stops divide by zero errors where maxMinDif would be zero. If the min and max are the same the percentage has no point.
     }
 
     //get the difference between the maximum and minimum values (e.g if max was 100, and min was 50, difference is 50)
-    float maxMinDif = self.maxValue - self.minValue;
+    float maxMinDif = self.maximumValue - self.minimumValue;
 
-    //now subtract value from the minValue (e.g if value is 75, then 75-50 = 25)
-    float valueSubtracted = value - self.minValue;
+    //now subtract value from the minimumValue (e.g if value is 75, then 75-50 = 25)
+    float valueSubtracted = value - self.minimumValue;
 
     //now divide valueSubtracted by maxMinDif to get the percentage (e.g 25/50 = 0.5)
     return valueSubtracted / maxMinDif;
@@ -237,12 +263,12 @@ static const CGFloat kLabelsFontSize = 12.0f;
     float percentage = [self getPercentageAlongLineForValue:value];
 
     //get the difference between the maximum and minimum coordinate position x values (e.g if max was x = 310, and min was x=10, difference is 300)
-    float maxMinDif = CGRectGetMaxX(self.sliderLine.frame) - CGRectGetMinX(self.sliderLine.frame);
+    float maxMinDif = CGRectGetMaxX(self.sliderLine.frame) - CGRectGetMinX(self.sliderLine.frame) - self.handleDiameter;
 
     //now multiply the percentage by the minMaxDif to see how far along the line the point should be, and add it onto the minimum x position.
     float offset = percentage * maxMinDif;
 
-    return CGRectGetMinX(self.sliderLine.frame) + offset;
+    return CGRectGetMinX(self.sliderLine.frame) + offset + (self.handleDiameter / 2);
 }
 
 - (void)updateLabelValues {
@@ -273,10 +299,17 @@ static const CGFloat kLabelsFontSize = 12.0f;
     self.leftHandle.position = leftHandleCenter;
 
     CGPoint rightHandleCenter = CGPointMake([self getXPositionAlongLineForValue:self.selectedMaximum], CGRectGetMidY(self.sliderLine.frame));
-    self.rightHandle.position= rightHandleCenter;
+    self.rightHandle.position = rightHandleCenter;
     
     //positioning for the dist slider line
-    self.sliderLineBetweenHandles.frame = CGRectMake(self.leftHandle.position.x, self.sliderLine.frame.origin.y, self.rightHandle.position.x-self.leftHandle.position.x, self.lineHeight);
+    CGFloat leftPosition = self.leftHandle.position.x;
+    CGFloat cornerRadius = 0.0;
+    if (self.enableRange == NO) {
+        leftPosition = self.sliderLine.frame.origin.x;
+        cornerRadius = self.sliderLine.cornerRadius;
+    }
+    self.sliderLineBetweenHandles.frame = CGRectMake(leftPosition, self.sliderLine.frame.origin.y, self.rightHandle.position.x-leftPosition, self.lineHeight);
+    self.sliderLineBetweenHandles.cornerRadius = cornerRadius;
 }
 
 - (void)updateLabelPositions {
@@ -301,7 +334,7 @@ static const CGFloat kLabelsFontSize = 12.0f;
     float newRightMostXInMinLabel = newMinLabelCenter.x + minLabelTextSize.width/2;
     float newSpacingBetweenTextLabels = newLeftMostXInMaxLabel - newRightMostXInMinLabel;
 
-    if (self.disableRange == YES || newSpacingBetweenTextLabels > minSpacingBetweenLabels) {
+    if (self.enableRange == NO || newSpacingBetweenTextLabels > minSpacingBetweenLabels) {
         self.minLabel.position = newMinLabelCenter;
         self.maxLabel.position = newMaxLabelCenter;
     }
@@ -329,14 +362,16 @@ static const CGFloat kLabelsFontSize = 12.0f;
     if (CGRectContainsPoint(CGRectInset(self.leftHandle.frame, HANDLE_TOUCH_AREA_EXPANSION, HANDLE_TOUCH_AREA_EXPANSION), gesturePressLocation) || CGRectContainsPoint(CGRectInset(self.rightHandle.frame, HANDLE_TOUCH_AREA_EXPANSION, HANDLE_TOUCH_AREA_EXPANSION), gesturePressLocation))
     {
         //the touch was inside one of the handles so we're definitely going to start movign one of them. But the handles might be quite close to each other, so now we need to find out which handle the touch was closest too, and activate that one.
-        float distanceFromLeftHandle = [self distanceBetweenPoint:gesturePressLocation andPoint:[self getCentreOfRect:self.leftHandle.frame]];
-        float distanceFromRightHandle =[self distanceBetweenPoint:gesturePressLocation andPoint:[self getCentreOfRect:self.rightHandle.frame]];
 
-        if (distanceFromLeftHandle < distanceFromRightHandle && self.disableRange == NO){
+        // rkn update: with the visual changes, when the handles are equal (and thus fully overlapping), they still visually look like they're adjacent, so take the distance from the left and right of the handles instead of the center, so that the right handle is still selectable in the overlapping case.
+        float distanceFromLeftHandle = [self distanceBetweenPoint:gesturePressLocation andPoint:[self getLeftOfRect:self.leftHandle.frame]];
+        float distanceFromRightHandle = [self distanceBetweenPoint:gesturePressLocation andPoint:[self getRightOfRect:self.rightHandle.frame]];
+
+        if (distanceFromLeftHandle < distanceFromRightHandle && self.enableRange == YES){
             self.leftHandleSelected = YES;
             [self animateHandle:self.leftHandle withSelection:YES];
         } else {
-            if (self.selectedMaximum == self.maxValue && [self getCentreOfRect:self.leftHandle.frame].x == [self getCentreOfRect:self.rightHandle.frame].x) {
+            if (self.selectedMaximum == self.maximumValue && [self getCentreOfRect:self.leftHandle.frame].x == [self getCentreOfRect:self.rightHandle.frame].x) {
                 self.leftHandleSelected = YES;
                 [self animateHandle:self.leftHandle withSelection:YES];
             }
@@ -357,6 +392,10 @@ static const CGFloat kLabelsFontSize = 12.0f;
 }
 
 - (void)refresh {
+    [self refresh:YES];
+}
+
+- (void)refresh:(BOOL)sendActions {
 
     if (self.enableStep && self.step>=0.0f){
         _selectedMinimum = roundf(self.selectedMinimum/self.step)*self.step;
@@ -381,11 +420,11 @@ static const CGFloat kLabelsFontSize = 12.0f;
     }
 
     //ensure the minimum and maximum selected values are within range. Access the values directly so we don't cause this refresh method to be called again (otherwise changing the properties causes a refresh)
-    if (self.selectedMinimum < self.minValue){
-        _selectedMinimum = self.minValue;
+    if (self.selectedMinimum < self.minimumValue){
+        _selectedMinimum = self.minimumValue;
     }
-    if (self.selectedMaximum > self.maxValue){
-        _selectedMaximum = self.maxValue;
+    if (self.selectedMaximum > self.maximumValue){
+        _selectedMaximum = self.maximumValue;
     }
 
     //update the frames in a transaction so that the tracking doesn't continue until the frame has moved.
@@ -397,14 +436,16 @@ static const CGFloat kLabelsFontSize = 12.0f;
     [self updateLabelValues];
     [self updateAccessibilityElements];
 
-    //update the delegate
-    if ([self.delegate respondsToSelector:@selector(rangeSlider:didChangeSelectedMinimumValue:andMaximumValue:)] &&
-        (self.leftHandleSelected || self.rightHandleSelected)){
+    if (sendActions) {
+        //update the delegate
+        if ([self.delegate respondsToSelector:@selector(rangeSlider:didChangeSelectedMinimumValue:andMaximumValue:)] &&
+            (self.leftHandleSelected || self.rightHandleSelected)){
 
-        [self.delegate rangeSlider:self didChangeSelectedMinimumValue:self.selectedMinimum andMaximumValue:self.selectedMaximum];
+            [self.delegate rangeSlider:self didChangeSelectedMinimumValue:self.selectedMinimum andMaximumValue:self.selectedMaximum];
+        }
+
+        [self sendActionsForControlEvents:UIControlEventValueChanged];
     }
-
-    [self sendActionsForControlEvents:UIControlEventValueChanged];
 }
 
 - (BOOL)continueTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
@@ -414,26 +455,26 @@ static const CGFloat kLabelsFontSize = 12.0f;
     //find out the percentage along the line we are in x coordinate terms (subtracting half the frames width to account for moving the middle of the handle, not the left hand side)
     float percentage = ((location.x-CGRectGetMinX(self.sliderLine.frame)) - self.handleDiameter/2) / (CGRectGetMaxX(self.sliderLine.frame) - CGRectGetMinX(self.sliderLine.frame));
 
-    //multiply that percentage by self.maxValue to get the new selected minimum value
-    float selectedValue = percentage * (self.maxValue - self.minValue) + self.minValue;
+    //multiply that percentage by self.maximumValue to get the new selected minimum value
+    float selectedValue = percentage * (self.maximumValue - self.minimumValue) + self.minimumValue;
 
     if (self.leftHandleSelected)
     {
         if (selectedValue < self.selectedMaximum){
-            self.selectedMinimum = selectedValue;
+            [self setSelectedMinimum:selectedValue sendActions:YES];
         }
         else {
-            self.selectedMinimum = self.selectedMaximum;
+            [self setSelectedMinimum:self.selectedMaximum sendActions:YES];
         }
 
     }
     else if (self.rightHandleSelected)
     {
-        if (selectedValue > self.selectedMinimum || (self.disableRange && selectedValue >= self.minValue)){ //don't let the dots cross over, (unless range is disabled, in which case just dont let the dot fall off the end of the screen)
-            self.selectedMaximum = selectedValue;
+        if (selectedValue > self.selectedMinimum || (!self.enableRange && selectedValue >= self.minimumValue)){ //don't let the dots cross over, (unless range is disabled, in which case just dont let the dot fall off the end of the screen)
+            [self setSelectedMaximum:selectedValue sendActions:YES];
         }
         else {
-            self.selectedMaximum = self.selectedMinimum;
+            [self setSelectedMaximum:self.selectedMinimum sendActions:YES];
         }
     }
 
@@ -496,6 +537,16 @@ static const CGFloat kLabelsFontSize = 12.0f;
     return CGPointMake(CGRectGetMidX(rect), CGRectGetMidY(rect));
 }
 
+- (CGPoint)getLeftOfRect:(CGRect)rect
+{
+    return CGPointMake(CGRectGetMinX(rect), CGRectGetMidY(rect));
+}
+
+- (CGPoint)getRightOfRect:(CGRect)rect
+{
+    return CGPointMake(CGRectGetMaxX(rect), CGRectGetMidY(rect));
+}
+
 
 #pragma mark - Properties
 -(void)setTintColor:(UIColor *)tintColor{
@@ -517,15 +568,16 @@ static const CGFloat kLabelsFontSize = 12.0f;
     [CATransaction commit];
 }
 
-- (void)setDisableRange:(BOOL)disableRange {
-    _disableRange = disableRange;
-    if (_disableRange){
+- (void)setEnableRange:(BOOL)enableRange {
+    _enableRange = enableRange;
+    if (!_enableRange){
         self.leftHandle.hidden = YES;
         self.minLabel.hidden = YES;
     } else {
         self.leftHandle.hidden = NO;
         self.minLabel.hidden = NO;
     }
+    [self drawHandles];
 }
 
 - (NSNumberFormatter *)decimalNumberFormatter {
@@ -537,32 +589,54 @@ static const CGFloat kLabelsFontSize = 12.0f;
     return _decimalNumberFormatter;
 }
 
-- (void)setMinValue:(float)minValue {
-    _minValue = minValue;
-    [self refresh];
+- (void)setMinimumValue:(float)minimumValue {
+    _minimumValue = minimumValue;
+    [self refresh:NO];
 }
 
-- (void)setMaxValue:(float)maxValue {
-    _maxValue = maxValue;
-    [self refresh];
+- (void)setMaximumValue:(float)maximumValue {
+    _maximumValue = maximumValue;
+    [self refresh:NO];
 }
 
 - (void)setSelectedMinimum:(float)selectedMinimum {
-    if (selectedMinimum < self.minValue){
-        selectedMinimum = self.minValue;
+    [self setSelectedMinimum:selectedMinimum sendActions:NO];
+}
+
+- (void)setSelectedMinimum:(float)selectedMinimum sendActions:(BOOL)sendActions {
+    if (selectedMinimum < self.minimumValue){
+        selectedMinimum = self.minimumValue;
     }
 
     _selectedMinimum = selectedMinimum;
-    [self refresh];
+    [self refresh:sendActions];
 }
 
 - (void)setSelectedMaximum:(float)selectedMaximum {
-    if (selectedMaximum > self.maxValue){
-        selectedMaximum = self.maxValue;
+    [self setSelectedMaximum:selectedMaximum sendActions:NO];
+}
+
+- (void)setSelectedMaximum:(float)selectedMaximum sendActions:(BOOL)sendActions {
+    if (selectedMaximum > self.maximumValue){
+        selectedMaximum = self.maximumValue;
     }
 
     _selectedMaximum = selectedMaximum;
-    [self refresh];
+    [self refresh:sendActions];
+}
+
+- (float)value {
+    if (_enableRange) {
+        abort();
+    }
+    return _selectedMaximum;
+}
+
+- (void)setValue:(float)value {
+    if (self.enableRange) {
+        abort();
+    }
+    self.selectedMaximum = value;
 }
 
 -(void)setMinLabelColour:(UIColor *)minLabelColour{
@@ -609,31 +683,26 @@ static const CGFloat kLabelsFontSize = 12.0f;
 
 -(void)setHandleColor:(UIColor *)handleColor{
     _handleColor = handleColor;
-    self.leftHandle.backgroundColor = [handleColor CGColor];
-    self.rightHandle.backgroundColor = [handleColor CGColor];
+    self.leftHandle.fillColor = [handleColor CGColor];
+    self.rightHandle.fillColor = [handleColor CGColor];
 }
 
 -(void)setHandleBorderColor:(UIColor *)handleBorderColor{
     _handleBorderColor = handleBorderColor;
-    self.leftHandle.borderColor = [handleBorderColor CGColor];
-    self.rightHandle.borderColor = [handleBorderColor CGColor];
+    self.leftHandle.strokeColor = [handleBorderColor CGColor];
+    self.rightHandle.strokeColor = [handleBorderColor CGColor];
 }
 
 -(void)setHandleBorderWidth:(CGFloat)handleBorderWidth{
     _handleBorderWidth = handleBorderWidth;
-    self.leftHandle.borderWidth = handleBorderWidth;
-    self.rightHandle.borderWidth = handleBorderWidth;
+    self.leftHandle.lineWidth = handleBorderWidth;
+    self.rightHandle.lineWidth = handleBorderWidth;
 }
 
 -(void)setHandleDiameter:(CGFloat)handleDiameter{
     _handleDiameter = handleDiameter;
-    
-    self.leftHandle.cornerRadius = self.handleDiameter / 2;
-    self.rightHandle.cornerRadius = self.handleDiameter / 2;
-    
-    self.leftHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
-    self.rightHandle.frame = CGRectMake(0, 0, self.handleDiameter, self.handleDiameter);
 
+    [self drawHandles];
 }
 
 -(void)setTintColorBetweenHandles:(UIColor *)tintColorBetweenHandles{
